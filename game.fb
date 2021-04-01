@@ -1,0 +1,61 @@
+'P/M test program
+RAMTOP = $6A   : SDMCTL = $22F  : PCOLR0 = $2C0
+HPOSP0 = $D000 : GRACTL = $D01D : PMBASE = $D407
+
+'Reserve memory at TOP
+MemTop = Peek(RAMTOP) - 4
+P0Mem  = $100 * MemTop + $200
+oldPos = P0Mem
+poke RAMTOP, MemTop
+
+'Activate and configure P/M data
+graphics 0
+print "BOOP is a bouncing ball thingy!"
+poke P0Mem, 0 : move P0Mem, P0Mem+1, 127 : ' Clears Memory
+poke SDMCTL, Peek(SDMCTL) ! 8
+poke PMBASE, MemTop
+poke GRACTL, 2
+poke 710,0
+
+'P/M data and blank as strings
+PMdata = 1 + Adr("8DTD8") : PMclear= 1 + Adr(""$00$00$00$00$00)
+' Initial Conditions
+xPos = 6400 : yPos = 2560
+xSpd =   64 : ySpd =    0
+
+gravity = 3
+zcol = 11
+poke PCOLR0, zcol
+
+do
+ xPos = xPos + xSpd : yPos = yPos + ySpd
+ ySpd = ySpd + gravity
+ 
+
+ if (ySpd > 0) and (yPos > 13800)
+   ySpd = -ySpd
+   xSpd = Rand(512) - 256
+   zcol = zcol + 16
+   if zcol > 255 then zcol = 0
+ endif
+ if xSpd > 0
+  if xPos > 25600 Then xSpd = -xSpd
+ else
+  if xPos <  6400 Then xSpd = -xSpd
+ endif
+ sound 1,yPos/128,10,10
+ sound 0,yPos/164,10,10
+ exec MovePm : ' Move P/M Graphics
+loop
+
+proc MovePm
+ x = xPos / 128 : y = P0Mem + yPos / 128
+ poke $D01A, zcol : ' Change background color
+ pause 0
+ inc zcol
+ poke HPOSP0, x
+ poke PCOLR0, zcol
+ move PMclear, oldPos, 5
+ move PMdata,  y,      5
+ oldPos = y
+endproc
