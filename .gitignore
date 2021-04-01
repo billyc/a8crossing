@@ -1,4 +1,6 @@
 *.lbl
 *.o
 *.xex
+*.asm
+*.atr
 

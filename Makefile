@@ -20,12 +20,17 @@ SRC=Makefile game.fb
 build: $(OUTPUT).atr
 .PHONY: build
 
+emulator: $(OUTPUT).atr
+> open /Applications/Atari800MacX/Atari800MacX.app $(OUTPUT).atr
+.PHONY: emulate
+
 $(OUTPUT).atr: $(SRC)
 > fb game.fb
 > mkatr -x $@ -b $(OUTPUT).xex
 
 serve:
-> fswatch -o $(SRC) | xargs -n1 -I{} gmake
+> fswatch -o $(SRC) | xargs -n1 -I{} gmake emulator
+
 .PHONY: serve
 
 #> inotifywait -qrm --event modify src/* | while read file; do make; done
