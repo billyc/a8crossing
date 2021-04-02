@@ -6,18 +6,31 @@
     {
       "label": "build",
       "type": "process",
-      "command": "/opt/fastbasic/fb",
+      "command": "/home/billy/fastbasic/fastbasic-int.exe",
       "args": [
         // Current file - maybe someday FB will support multifile
-        "${file}"
+        "${file}",
+        "${fileBasenameNoExtension}.asm"
       ],
       "group": { "kind": "build", "isDefault": true },
       "presentation": {
         // Reveal the output only if unrecognized errors occur.
-        "reveal": "silent"
+        "reveal": "never",
+        "revealProblems": "onProblem"
       },
       // Use the standard MS compiler pattern to detect errors, warnings and infos
-      "problemMatcher": "$msCompile"
+      // "problemMatcher": "$msCompile"
+      "problemMatcher": {
+        "owner": "fb",
+        "fileLocation": ["absolute"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      }
     }
   ]
 }
