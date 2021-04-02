@@ -1,0 +1,19 @@
+graphics 11
+data sx() word = 0,0,0,0,0,1, 1,1,0,-1,-1,-1,0,0, 0,0
+data sy() word = 0,0,0,0,0,1,-1,0,0, 1,-1, 0,0,1,-1,0
+
+z=16 z
+X=40*z:Y=96*z:COLOR 1
+poke 712,9
+
+do
+   plot X/z,Y/z
+   X=X+8*SX(stick(0)):X=X+8*(X<0)-8*(X>79*z)
+   Y=Y+ 16*SY(stick(0)):Y=Y+16*(Y<0)-16*(Y>191*z)
+
+   if strig(0)=0
+    ' while strig(0)=0
+    'wend
+    C=C+1-15*(C=15):COLOR C
+   endif
+loop

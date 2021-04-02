@@ -2,9 +2,9 @@ graphics 11
 data sx() word = 0,0,0,0,0,1, 1,1,0,-1,-1,-1,0,0, 0,0
 data sy() word = 0,0,0,0,0,1,-1,0,0, 1,-1, 0,0,1,-1,0
 
-20 z=16
+z=16
 X=40*z:Y=96*z:COLOR 1
-poke 712,8
+poke 712,9
 
 do
    plot X/z,Y/z
