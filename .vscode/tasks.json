@@ -5,13 +5,12 @@
   "tasks": [
     {
       "label": "build",
-      "type": "process",
-      "command": "/home/billy/fastbasic/fastbasic-int.exe",
-      "args": [
-        // Current file - maybe someday FB will support multifile
-        "${file}",
-        "${fileBasenameNoExtension}.asm"
-      ],
+      "type": "shell",
+      "command": "/opt/fastbasic/fastbasic-fp ${file} .test-build.asm && rm -rf build && mkdir -p build && cp ${file} build && cd build && /opt/fastbasic/fb ${fileBasename} && /opt/fastbasic/mkatr -x ${fileBasenameNoExtension}.atr -b ${fileBasenameNoExtension}.xex",
+      // "args": [
+      //   // Current file - maybe someday FB will support multifile
+      //   "${file}"
+      // ],
       "group": { "kind": "build", "isDefault": true },
       "presentation": {
         // Reveal the output only if unrecognized errors occur.

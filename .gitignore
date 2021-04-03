@@ -1,6 +1,3 @@
-*.lbl
-*.o
-*.xex
-*.asm
-*.atr
+build/
+.test-build.asm
 
