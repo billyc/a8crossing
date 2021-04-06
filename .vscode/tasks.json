@@ -4,21 +4,15 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build",
+      "label": "Build FastBasic",
       "type": "shell",
-      "command": "/opt/fastbasic/fastbasic-fp ${file} .test-build.asm && rm -rf build && mkdir -p build && cp ${file} build && cd build && /opt/fastbasic/fb ${fileBasename} && /opt/fastbasic/mkatr -x ${fileBasenameNoExtension}.atr -b ${fileBasenameNoExtension}.xex",
-      // "args": [
-      //   // Current file - maybe someday FB will support multifile
-      //   "${file}"
-      // ],
+      "command": "/opt/fastbasic/fastbasic-fp ${file} ~/.test-build.asm && mkdir -p build && cp ${file} build && cd build && /opt/fastbasic/fb ${fileBasename} && /opt/fastbasic/mkatr -x ${fileBasenameNoExtension}.atr -b ${fileBasenameNoExtension}.xex && open /Applications/Atari800MacX/Atari800MacX.app ${fileBasenameNoExtension}.atr",
       "group": { "kind": "build", "isDefault": true },
       "presentation": {
         // Reveal the output only if unrecognized errors occur.
-        "reveal": "never",
+        "reveal": "silent",
         "revealProblems": "onProblem"
       },
-      // Use the standard MS compiler pattern to detect errors, warnings and infos
-      // "problemMatcher": "$msCompile"
       "problemMatcher": {
         "owner": "fb",
         "fileLocation": ["absolute"],

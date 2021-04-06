@@ -12,30 +12,34 @@ ifeq ($(origin .RECIPEPREFIX), undefined)
 endif
 .RECIPEPREFIX = >
 # --------------------------------------------------
-
+SRC=Makefile game.fb
 OUTPUT=game
 
-SRC=Makefile game.fb
-
+EMULATOR=/Applications/Atari800MacX/Atari800MacX.app
+# --------------------------
+#
 build: $(OUTPUT).atr
 .PHONY: build
 
 emulator: $(OUTPUT).atr
-> open /Applications/Atari800MacX/Atari800MacX.app $(OUTPUT).atr
-.PHONY: emulate
+> open $(EMULATOR) $(OUTPUT).atr
+.PHONY: emulator
 
 $(OUTPUT).atr: $(SRC)
 > fb game.fb
 > mkatr -x $@ -b $(OUTPUT).xex
 
 serve:
-> fswatch -o $(SRC) | xargs -n1 -I{} gmake emulator
-
+> fswatch -o $(SRC) | xargs -n1 -I{} open $(EMULATOR) build/$(OUTPUT).atr
 .PHONY: serve
+
+serve-atr:
+> fswatch --latency 2 -o build/$(OUTPUT).o | xargs -n1 -I{}   open $(EMULATOR) build/$(OUTPUT).atr
+.PHONY: serve-atr
 
 #> inotifywait -qrm --event modify src/* | while read file; do make; done
 
 clean:
-> rm -rf $(OUTPUT).o $(OUTPUT).lbl $(OUTPUT).asm  $(OUTPUT).xex $(OUTPUT).atr
+> rm -rf build
 .PHONY: clean
 

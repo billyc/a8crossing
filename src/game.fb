@@ -1,84 +1,141 @@
-graphics 11
-data sx() word = 0,0,0,0,0,1, 1,1,0,-1,-1,-1,0,0, 0,0
-data sy() word = 0,0,0,0,0,1,-1,0,0, 1,-1, 0,0,1,-1,0
+'A8CROSSING
+'
+' build sky & ground in gr. mode 4a
+' joystick to move character
+' hold-button to pop up context circle
+' tools! plant, use, etc
+' bottom area for status stuff
 
-z=16
-X=40*z:Y=96*z:COLOR 1
-poke 712,8
+' Atari memory map
+RAMTOP=$6A   : SDMCTL=$22F
+GRACTL=$D01D : CHACTL=$2F3 : CHBASE=$2F4
+PMBASE=$D407 : SAVMSC=$58  : SDLSTL=$230
+HPOSP0=$D000
+PCOLR0=$2C0 : PCOLR1=$2c1 : PCOLR2=$2c2 : PCOLR3=$2c3
+COL0=$2C4 : COL1=$2C5 : COL2=$2c6 : COL3=$2c7 : COL4=$2c8
 
-do
-   plot X/z,Y/z
-   X=X+8*SX(stick(0)):X=X+8*(X<0)-8*(X>79*z)
-   Y=Y+ 16*SY(stick(0)):Y=Y+16*(Y<0)-16*(Y>191*z)
+pageCharSet = 0
+@initMemory pageCharSet
 
-   if strig(0)=0
-    ' while strig(0)=0
-    'wend
-    C=C+1-15*(C=15):COLOR C
-   endif
-loop
+locCharSet = 256*(pageCharSet)
 
+skyColor = $9a
+poke COL4, skyColor
 
-'GAME.ATR: test program
-RAMTOP = $6A   : SDMCTL = $22F  : PCOLR0 = $2C0
-HPOSP0 = $D000 : GRACTL = $D01D : PMBASE = $D407
+poke COL0, $da 'rand(256)
+poke COL1, $b8 'rand(256)
+poke COL2, $2c 'rand(256)
+poke COL3, $d8 'rand(256)
 
-
-'Reserve memory at TOP
-MemTop = Peek(RAMTOP) - 4
-P0Mem  = $100 * MemTop + $200
-oldPos = P0Mem
-poke RAMTOP, MemTop
-
-
-'Activate and configure P/M data
-poke 559,0
-poke P0Mem, 0 : move P0Mem, P0Mem+1, 127 : ' Clears Memory
-poke SDMCTL, Peek(SDMCTL) ! 8
-poke PMBASE, MemTop
-poke GRACTL, 2
-poke 710,0
-
-
-'P/M data and blank as strings
-PMdata = 1 + Adr("8DTD8") : PMclear= 1 + Adr(""$00$00$00$00$00)
+@initDisplayList
+@initCharacterSet
+@fillScreenWithRandomCharacters
+@initPMGraphics
 
 ' Initial Conditions
-xPos = 6400 : yPos = 2560
-xSpd =   0 : ySpd =    0
-
-gravity = 8
-zcol = 11
-poke PCOLR0, zcol
+xPos = 16000 : yPos = 2000
+poke PCOLR0, $57
 
 do
- xPos = xPos + xSpd : yPos = yPos + ySpd
- ySpd = ySpd + gravity
- 
- if (ySpd > 0) and (yPos > 13800)
-   ySpd = -ySpd
-   xSpd = Rand(512) - 256
-   zcol = zcol + 16
-   poke $D01A, zcol : ' Change background color
-   if zcol > 255 then zcol = 0
- endif
- if xSpd > 0
-  if xPos > 25600 Then xSpd = -xSpd
- else
-  if xPos <  6400 Then xSpd = -xSpd
- endif
- sound 0,yPos/128,12,8
- sound 1,255-(yPos/150),8,8
- 'sound 0,yPos/164,14,10
- exec MovePm : ' Move P/M Graphics
+  @joystickXY ' update x/y
+  @MovePm     ' Move P/M Graphics
+  poke locCharSet+8+rand(1014), Rand(256)
+  poke locCharSet+8+rand(1014), 0
+
+  if strig(0)=0 then @zapField
 loop
+
+
+proc initMemory pageCharSet
+  pageMemTop = Peek(RAMTOP) - 8
+  pageCharSet = pageMemTop + 4
+  poke RAMTOP, pageMemTop
+  graphics 0
+
+  poke PMBASE, pageMemTop
+  P0Mem  = $100 * pageMemTop + $200
+  oldPos = P0Mem
+endproc
+
+
+proc initDisplayList
+  locDLIST = DPEEK(SDLSTL)
+  poke locDLIST+3, 68
+  for i=6 to 28: poke locDLIST+i, 4: next i
+
+  ' Set sky DLI
+  DLI set d1 = $fe into $D01A
+  poke locDLIST+12, 132
+  DLI d1
+endproc
+
+
+proc initCharacterSet
+  ' Create a new character set for the GR.0 playfield
+  z = 256*(pageCharSet)
+  mset z,1024,0
+
+  poke CHBASE, pageCharSet
+endproc
+
+
+proc fillScreenWithRandomCharacters
+  screenMem = dpeek(SAVMSC)
+  mset screenMem, 24*48, 0
+  for i=8*48 to 10*48: poke screenMem+i, 1+rand(255): next i
+
+  for i=13*48 to 14*48: poke screenMem+i, 1+rand(255): next i
+
+  for i=22*48 to 23*48: poke screenMem+i, 1+rand(255): next i
+
+endproc
+
+
+proc initPMGraphics
+  'Activate and configure P/M data
+  poke P0Mem, 0 : move P0Mem, P0Mem+1, 127 : ' Clears Memory
+  poke SDMCTL, Peek(SDMCTL) ! 8              ' Enable Player DMA
+  poke SDMCTL, Peek(SDMCTL) ! 3              ' Enable Wide Playfield
+  poke GRACTL, 2                             ' Turn on players
+
+  'P/M data and blank as strings
+  PMdata = 1 + Adr("8DTD8") : PMclear= 1 + Adr(""$00$00$00$00$00)
+endproc
+
+
+proc zapField
+  for LL = 1 to 3
+    for p = 0 to 7
+      k = p * 128
+      sound 0,p*15+30,12,3+4*LL
+      sound 1,100-p*15,12,4
+      for i=0 to 127
+        poke locCharSet+k+i, peek(z+k+i)/8
+      next i
+    next p
+  next LL
+  sound
+endproc
+
+
+proc joystickXY
+  data sx() word = 0,0,0,0,0,1, 1,1,0,-1,-1,-1,0,0, 0,0
+  data sy() word = 0,0,0,0,0,1,-1,0,0, 1,-1, 0,0,1,-1,0
+
+  xPos = xPos + 128*SX(stick(0)) ': xPos = xPos +8*(xPos<0) -8*(xPos>200*z)
+  yPos = yPos + 128*SY(stick(0)) ': yPos = yPos +8*(yPos<0) -8*(yPos>191*z)
+  ' if strig(0)=0
+  ' ' while strig(0)=0
+  ' ' wend
+  ' C = C + 1 - 15*(C=15) : COLOR C
+  ' endif
+endproc
+
 
 proc MovePm
  x = xPos / 128 : y = P0Mem + yPos / 128
  pause 0
- inc zcol
  poke HPOSP0, x
- 'poke PCOLR0, zcol
  move PMclear, oldPos, 5
  move PMdata,  y,      5
  oldPos = y
