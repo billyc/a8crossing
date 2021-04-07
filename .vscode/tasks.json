@@ -6,7 +6,7 @@
     {
       "label": "Build FastBasic",
       "type": "shell",
-      "command": "/opt/fastbasic/fastbasic-fp ${file} ~/.test-build.asm && mkdir -p build && cp ${file} build && cd build && /opt/fastbasic/fb ${fileBasename} && /opt/fastbasic/mkatr -x ${fileBasenameNoExtension}.atr -b ${fileBasenameNoExtension}.xex && open /Applications/Atari800MacX/Atari800MacX.app ${fileBasenameNoExtension}.atr",
+      "command": "/opt/fastbasic/fastbasic-fp ${file} ~/.test-build.asm && mkdir -p build && cp ${file} build && cd build && /opt/fastbasic/fb-int ${fileBasename} && /opt/fastbasic/mkatr -x ${fileBasenameNoExtension}.atr -b ${fileBasenameNoExtension}.xex && open /Applications/Atari800MacX/Atari800MacX.app ${fileBasenameNoExtension}.atr",
       "group": { "kind": "build", "isDefault": true },
       "presentation": {
         // Reveal the output only if unrecognized errors occur.
