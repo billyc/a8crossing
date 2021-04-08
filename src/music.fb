@@ -1,0 +1,49 @@
+AUDCTL=53768
+FREQ1=53760:FREQ2=53762:FREQ3=53764:FREQ4=53766
+AUDC1=53761:AUDC2=53763:AUDC3=53765:AUDC4=53767
+
+poke $52, $0
+graphics 2+16
+
+sound 0,0,0,0
+
+poke AUDCTL, 24 '16+8: 2 16bit channels
+
+poke AUDC1,168 '160 + 8 : pure tone, med volume
+poke AUDC2,168
+poke AUDC3,164
+poke AUDC4,164
+
+poke FREQ1,200
+poke FREQ2,52
+poke FREQ3,150
+poke FREQ4,255
+
+do
+    color 2
+    print #6, chr$(32+rand(2));
+
+  poke AUDCTL, 24 + 128 '16+8: 2 16bit channels
+  poke FREQ1,200
+  poke FREQ2,52
+  for a=8to 0 step -1
+    poke AUDC1,160+a
+    poke AUDC2,160+a
+    poke AUDC3,160+a
+    poke AUDC4,160+a
+    if (a) then pause 7
+  next a
+
+  poke 712,rand(256)
+  poke 710,rand(256)
+
+  poke AUDCTL, 0 '16+8: 2 16bit channels
+  poke FREQ1,4+rand(3)
+  poke FREQ2,6+rand(3)
+  for a=8 to 2step -1
+    poke AUDC1,32+a
+    poke AUDC2,32+a
+    pause 2
+  next a
+
+loop

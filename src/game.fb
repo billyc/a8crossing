@@ -10,10 +10,21 @@
 RAMTOP=$6A   : SDMCTL=$22F
 GRACTL=$D01D : CHACTL=$2F3 : SCHBAS=$2F4
 PMBASE=$D407 : SAVMSC=$58  : SDLSTL=$230
-HPOSP0=$D000 : GPRIOR = $26F : SIZEP0=$D008
-PCOLR0=$2C0 : PCOLR1=$2C1 : PCOLR2=$2C2 : PCOLR3=$2C3
+HPOSP0=$D000 : SIZEP0=$D008 : HPOSP1 = $D001 : SIZEP1=$D009
+HPOSP2=$D002 : SIZEP2=$D00A : HPOSP3 = $D003 : SIZEP3=$D00B
+PCOLR0=$2C0  : PCOLR1=$2C1 : PCOLR2=$2C2 : PCOLR3=$2C3
 COL0=$2C4 : COL1=$2C5 : COL2=$2C6 : COL3=$2c7 : COL4=$2C8
-CHBASE = $D409
+CHBASE = $D409 : GPRIOR = $26F
+AUDCTL=53768
+FREQ1=53760:FREQ2=53762:FREQ3=53764:FREQ4=53766
+AUDC1=53761:AUDC2=53763:AUDC3=53765:AUDC4=53767
+
+
+showSheet = 1
+panelText$ = "panel storage"
+
+data bgColors() byte = $fe, $da, $da
+data charSets() byte = $e2, $e2, $e2
 
 pageCharSet = 0
 @initMemory pageCharSet
@@ -35,13 +46,12 @@ poke COL3, $de 'rand(256)
 
 ' Initial Conditions
 xPos = 16000 : yPos = 2000
-poke PCOLR0, $57
 
 do
   @joystickXY ' update x/y
   t = 8 + rand(1317)
   if (t<1024) then poke locCharSet+t, (1+rand(127)) & 85
-  if strig(0)=0 then @zapField
+  if strig(0)=0 then @handleTrigger
 loop
 
 
@@ -53,7 +63,34 @@ proc initMemory pageCharSet
 
   poke PMBASE, pageMemTop
   P0Mem  = $100 * pageMemTop + $200
-  oldPos = P0Mem
+  P1Mem  = P0Mem + $80
+  P2Mem  = P0Mem + $100
+  P3Mem  = P0Mem + $180
+  oldPos = P3Mem
+endproc
+
+
+proc initPMGraphics
+  'Activate and configure P/M data
+  mset P0Mem, 128, 255 : ' Fills Memory
+  mset P1Mem, 128, 255 : ' Fills Memory
+  mset P2Mem, 128, 255 : ' Fills Memory
+  mset P3Mem, 128,   0 : ' Fills Memory
+
+  poke SDMCTL, Peek(SDMCTL) ! 8        ' Enable Player DMA
+  ' poke SDMCTL, Peek(SDMCTL) ! 3      ' Enable Wide Playfield
+  poke GPRIOR, 1+8 ' 3 ' is weird         ' Players on top
+  poke GRACTL, 2                       ' Turn on players
+  poke SIZEP0, 3 ' quad-wide
+  poke SIZEP1, 3
+
+  poke PCOLR3, $57
+  poke PCOLR0, $0F
+  poke PCOLR1, $0F
+
+  'P/M data and blank as strings
+  PMdata = 1 + Adr("8DTD8")
+  PMclear= 1 + Adr(""$00$00$00$00$00)
 endproc
 
 
@@ -64,8 +101,6 @@ proc initDisplayList
   for i=6 to 27: poke locDLIST+i, 4: next i
 
   ' Set sky and character set DLIs
-  data bgColors() byte = $fe, $da, $da
-  data charSets() byte = $e2, $e2, $e2
   charSets(0) = pageCharSet
   charSets(2) = pageCharSet
 
@@ -82,6 +117,10 @@ proc initCharacterSet
   z = 256*(pageCharSet)
   mset z,1024,0
   poke SCHBAS, pageCharSet
+
+  ' Copy Atari text chars ONLY into new set
+  atari = $e000 + 16*8
+  move atari, z+16*8, 10*8
 endproc
 
 
@@ -91,22 +130,94 @@ proc fillScreenWithRandomCharacters
   mset screenMem, 24*w, 0
   for i=8*w to 23*w-1: poke screenMem+i, 1+rand(255): next i
 
-  a$ = "plant"$0"some"$0"seeds"
+  a$ = "move"$0"it"
   locMsg = 1+adr(a$)
-  move locMsg, + (w-len(a$))/2 + screenMem + 23*w, len(a$)
+  move locMsg,  (w-len(a$))/2 + screenMem + 23*w, len(a$)
 endproc
 
 
-proc initPMGraphics
-  'Activate and configure P/M data
-  poke P0Mem, 0 : move P0Mem, P0Mem+1, 127 : ' Clears Memory
-  poke SDMCTL, Peek(SDMCTL) ! 8              ' Enable Player DMA
-  ' poke SDMCTL, Peek(SDMCTL) ! 3              ' Enable Wide Playfield
-  poke GRACTL, 2                             ' Turn on players
-  poke GPRIOR, 3
+proc handleTrigger
+  ' slide in:
+  '  put players on top, slide them in, rewrite whats' under, then reveal
+  ' slide out:
+  '  put players on top, rewrite whats' under, slide them out
 
-  'P/M data and blank as strings
-  PMdata = 1 + Adr("8DTD8") : PMclear= 1 + Adr(""$00$00$00$00$00)
+  slideStart = (showSheet=1)*32
+  slideEnd = 32 - slideStart
+  slideDir = (1 - 2*showSheet)  ' -1 or 1
+
+  ' dim colors
+  fade = 6*slideDir
+  poke COL4, peek(COL4) + fade
+  for i=0 to 2
+    bgColors(i) = bgColors(i) + fade
+  next i
+
+  vol = 32
+  bleep = 250 + rand(30)
+
+  poke GPRIOR,1 '1:players on top
+
+  if (showSheet=0) then @restorePanel
+
+  for i=slideStart to slideEnd step 2*(1 - 2*showSheet)
+    pause
+    dec vol
+    poke HPOSP0,148 + i*2  '180
+    poke HPOSP1,180 + i  '179
+
+    if (i mod 4 = 0)
+      sound 0,bleep+i*3,10,vol/3
+      'sound 1,18,2,vol/8
+      'sound 2,20+i/2,2,vol/8
+    endif
+
+    'if not i mod 3 then pause 0
+  next i
+  sound
+
+
+  if (showSheet=1)
+    @clearPanel
+
+    ' fake content
+    eights = 1+adr("88888888")
+    for bbb = 9 to 11
+      move eights, screenMem+bbb*40+29, 8
+    next bbb
+
+    poke GPRIOR, 8+1 'reveal what's under in black
+  endif
+
+  showSheet=1-showSheet
+
+  'release the trigger dumbass!
+  while strig(0)=0
+  wend
+endproc
+
+
+
+proc clearPanel
+  panelWidth = 15
+  startrow=8
+  for i=0 to 14
+    dest = i*panelWidth + 1+adr(panelText$)
+    ' if dest = 0
+    '   poke 710,0
+    '   exit
+    ' endif
+    move screenMem + (40*(i+startrow)) + 25, dest, 15
+    mset screenMem + (40*(i+startrow)) + 25, 15, 0
+  next i
+endproc
+
+
+proc restorePanel
+  panelWidth = 15
+  for i=0 to 14
+    move 1+adr(panelText$)+i*panelWidth, screenMem + 40*(i+8)+25, panelWidth
+  next i
 endproc
 
 
@@ -117,9 +228,19 @@ proc zapField
       k = p * 128
       sound 0,p*15+rand(30),12,5*LL-3
       sound 1,100-p*15,10,LL
-      for i=0 to 31
-        poke locCharSet+k+i, peek(z+k+i)/4
+      for i=0 to 127
+        poke locCharSet+k+i, peek(z+k+i)/16
       next i
+    next p
+  next LL
+  sound
+endproc
+
+
+proc zapNoise
+  for LL = 3 to 1 step -1
+    for p = 0 to 7
+      k = p * 128
     next p
   next LL
   sound
@@ -132,35 +253,69 @@ xSpd = 0
 ySpd = 0
 friction = 2
 
-proc joystickXY
 
+proc dungeonNoise
+  poke AUDCTL, 24 '16+8: 2 16bit channels
+
+  poke AUDC1,168 '160 + 8 : pure tone, med volume
+  poke AUDC2,168
+  poke AUDC3,164
+  poke AUDC4,164
+
+  poke FREQ1,200
+  poke FREQ2,52
+  poke FREQ3,150
+  poke FREQ4,255
+
+  for bb= 7  to 0 step -2
+    poke AUDC1,160+bb
+    poke AUDC2,160+bb
+    poke AUDC3,160+bb
+    poke AUDC4,160+bb
+    if (bb) then pause 7
+  next bb
+  sound
+endproc
+
+proc joystickXY
   s = stick(0)
 
-  xSpd = xSpd + 8*SX(s)
-  ySpd = ySpd + 8*SY(s)
+  ' implement acceleration
+  xSpd = xSpd + 6*SX(s)
+  ySpd = ySpd + 6*SY(s)
 
+  ' set max speed
   if abs(xSpd)>512 then xSpd = xSpd / 2
   if abs(ySpd)>512 then ySpd = ySpd / 2
 
+  ' friction / brake quickly
   if sx(s)=0 then xSpd = xSpd / friction
   if sy(s)=0 then ySpd = ySpd / friction
 
+  ' don't erase memory out of bounds :-)
+  if yPos > 116*128
+    ySpd=0
+    yPos=116*128
+  endif
+
+  ' stop moving completely after braking
   if abs(xSpd)<2 and abs(ySpd)<2
     xSpd=0: ySpd=0
   else
     xPos = xPos + xSpd
     yPos = yPos + ySpd
+
     @MovePm     ' Move P/M Graphics
   endif
 endproc
 
 
 proc MovePm
- x = xPos / 128 : y = P0Mem + yPos / 128
- 'pause 0
+  x = xPos / 128 : y = P3Mem + yPos / 128
+  'pause 0
 
- poke HPOSP0, x
- move PMclear, oldPos, 5
- move PMdata, y,      5
- oldPos = y
+  poke HPOSP3, x
+  move PMclear, oldPos, 5
+  move PMdata, y, 5
+  oldPos = y
 endproc
